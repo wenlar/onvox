@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Onvox overlay</title>
+<style>
+  /* An OBS browser source: transparent everywhere except the indicator. */
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  #pill { display: none; align-items: center; gap: 10px; margin: 8px; padding: 10px 18px 10px 14px;
+          width: max-content; border-radius: 999px; background: rgba(20, 16, 36, .85);
+          font: 600 22px/1 "Segoe UI", sans-serif; color: #fff; }
+  #pill.on { display: flex; }
+  #dot { width: 14px; height: 14px; border-radius: 50%; background: #8b6cff; }
+  #pill.listening #dot { animation: pulse 1.2s ease-in-out infinite; }
+  #pill.starting #dot { opacity: .5; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(139, 108, 255, .7); }
+                     50% { box-shadow: 0 0 0 8px rgba(139, 108, 255, 0); } }
+</style>
+</head>
+<body>
+<div id="pill"><span id="dot"></span><span>AI</span></div>
+<script>
+  const pill = document.getElementById("pill");
+  setInterval(async () => {
+    try {
+      const { phase } = await (await fetch("/state", { cache: "no-store" })).json();
+      const on = phase === "starting" || phase === "listening";
+      pill.className = on ? `on ${phase}` : "";
+    } catch (e) {
+      pill.className = ""; // Onvox closed: show nothing.
+    }
+  }, 250);
+</script>
+</body>
+</html>

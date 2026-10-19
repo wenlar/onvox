@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Onvox</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #1a1a1a; --muted: #666; --line: #ddd; --accent: #6b4de6; --bad: #d33; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1e1e1e; --fg: #eee; --muted: #aaa; --line: #444; --bad: #f66; } }
+  body { margin: 0; padding: 24px; font: 14px/1.5 "Segoe UI", sans-serif; background: var(--bg); color: var(--fg); }
+  p { margin: 0 0 12px; color: var(--muted); }
+  #combo { padding: 16px; margin-bottom: 12px; text-align: center; font-size: 20px; font-weight: 600;
+           border: 1px solid var(--accent); border-radius: 8px; }
+  #error { min-height: 1.5em; color: var(--bad); margin: 0 0 12px; }
+  button { padding: 8px 20px; font: inherit; border: 1px solid var(--line); border-radius: 6px;
+           background: transparent; color: var(--fg); cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+</style>
+</head>
+<body>
+<p data-t="hint"></p>
+<div id="combo" aria-live="polite"></div>
+<p id="error" role="alert"></p>
+<button id="save" disabled data-t="save"></button>
+<script>
+  const tr = new URLSearchParams(location.search).get("lang") === "tr";
+  const text = tr ? {
+    hint: "Yeni tuş kombinasyonuna bas. En az bir Ctrl, Alt, Shift ya da Win içermeli.",
+    waiting: "Tuşlara bas…", save: "Kaydet",
+    needMod: "Ctrl, Alt, Shift ya da Win ekle.", taken: "Bu kısayol kullanılamıyor (başka bir uygulama kullanıyor olabilir).",
+  } : {
+    hint: "Press the new key combination. It must include Ctrl, Alt, Shift or Win.",
+    waiting: "Press keys…", save: "Save",
+    needMod: "Add Ctrl, Alt, Shift or Win.", taken: "This hotkey can't be used (another app may own it).",
+  };
+  document.querySelectorAll("[data-t]").forEach((e) => (e.textContent = text[e.dataset.t]));
+  const comboEl = document.getElementById("combo"), errorEl = document.getElementById("error");
+  const save = document.getElementById("save");
+  comboEl.textContent = text.waiting;
+  let combo = null;
+  const modifierCodes = /^(Control|Alt|Shift|Meta|OS)(Left|Right)?$/;
+  window.addEventListener("keydown", (e) => {
+    e.preventDefault();
+    if (modifierCodes.test(e.code)) return;
+    const mods = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Super"].filter(Boolean);
+    const shown = [...mods.map((m) => (m === "Super" ? "Win" : m)), e.code.replace(/^(Key|Digit)/, "")];
+    comboEl.textContent = shown.join(" + ");
+    combo = mods.length ? [...mods, e.code].join("+") : null;
+    errorEl.textContent = mods.length ? "" : text.needMod;
+    save.disabled = !combo;
+  });
+  save.addEventListener("click", async () => {
+    try { await window.__TAURI_INTERNALS__.invoke("set_hotkey", { combo }); }
+    catch (err) { errorEl.textContent = text.taken; }
+  });
+</script>
+</body>
+</html>
