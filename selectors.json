@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "chatgpt": {
+    "home_url": "https://chatgpt.com/",
+    "new_chat_url": "https://chatgpt.com/",
+    "start_voice": ["button[aria-label=\"Start Voice\"]"],
+    "stop_voice": ["button[aria-label=\"End Voice\"]"],
+    "voice_active": ["button[aria-label=\"End Voice\"]"],
+    "logged_out": ["text:Log in", "a[href*=\"/auth/login\"]"],
+    "limit_texts": ["reached your limit", "hit your limit", "limit for voice", "usage limit"]
+  },
+  "grok": {
+    "home_url": "https://grok.com/",
+    "new_chat_url": "https://grok.com/",
+    "start_voice": ["button[aria-label^=\"Enter voice mode\"]"],
+    "stop_voice": ["button[aria-label=\"Exit voice mode\"]"],
+    "voice_active": ["button[aria-label=\"Exit voice mode\"]"],
+    "logged_out": ["text:Sign in", "a[href*=\"sign-in\"]"],
+    "limit_texts": ["reached your limit", "hit your limit", "usage limit", "rate limit"]
+  }
+}
