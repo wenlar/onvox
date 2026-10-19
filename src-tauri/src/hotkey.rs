@@ -14,6 +14,11 @@ pub fn validate(s: &str) -> Result<Shortcut, String> {
     if sc.mods.is_empty() {
         return Err("needs Ctrl, Alt, Shift or Win".into());
     }
+    // The sites' own shortcuts (Ctrl+Shift+O opens a new chat): taking them would break the site.
+    let reserved: Shortcut = "Ctrl+Shift+KeyO".parse().expect("valid shortcut");
+    if sc.id() == reserved.id() {
+        return Err("used by the site itself".into());
+    }
     Ok(sc)
 }
 
@@ -51,6 +56,12 @@ mod tests {
     #[test]
     fn default_hotkey_valid() {
         assert!(validate(&crate::config::Config::default().hotkey).is_ok());
+    }
+
+    #[test]
+    fn site_shortcut_rejected() {
+        assert!(validate("Ctrl+Shift+KeyO").is_err());
+        assert!(validate("Ctrl+Alt+KeyO").is_ok());
     }
 
     #[test]

@@ -84,7 +84,7 @@ pub fn t(key: Key, lang: Lang) -> &'static str {
         (Key::MenuUpdate, Lang::En) => "Update and restart",
         (Key::UpdateReady, Lang::Tr) => "{v} sürümü hazır",
         (Key::UpdateReady, Lang::En) => "Version {v} is ready",
-        (Key::JustUpdated, Lang::Tr) => "Onvox {v} sürümüne güncellendi",
-        (Key::JustUpdated, Lang::En) => "Updated to Onvox {v}",
+        (Key::JustUpdated, Lang::Tr) => "Onvox {v} sürümüne güncellendi: yenilikler",
+        (Key::JustUpdated, Lang::En) => "Updated to Onvox {v}: what's new",
     }
 }

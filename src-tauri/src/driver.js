@@ -1,8 +1,12 @@
 // Drives the site's own voice mode. The selectors arrive as JSON arguments, never as code.
 (() => {
   if (window.top !== window || window.__onvox) return;
+  // Filled in by the app for each run and kept in this closure, so the site's own scripts cannot report.
+  const TOKEN = "__ONVOX_TOKEN__";
+  // Taken before the site's scripts run, so a site that replaces window.__TAURI_INTERNALS__ later sees no token.
+  const internals = window.__TAURI_INTERNALS__;
   const report = (r) => {
-    try { window.__TAURI_INTERNALS__.invoke("page_report", { report: r }); } catch (e) {}
+    try { (internals || window.__TAURI_INTERNALS__).invoke("page_report", { report: r, token: TOKEN }); } catch (e) {}
   };
   const visible = (el) => !!(el && el.offsetParent);
   // "text:Log in" matches a visible button or link whose text is exactly "Log in"; anything else is a CSS selector.
@@ -61,7 +65,8 @@
         if (find(sel.voice_active)) return monitor(sel, null);
         const button = find(sel.start_voice);
         if (button) return monitor(sel, button);
-        if (Date.now() < until) return;
+        // A login sign without a voice button: say so now instead of after the wait.
+        if (Date.now() < until && !find(sel.logged_out)) return;
         clearInterval(timer);
         const fault = find(sel.logged_out) ? "not_logged_in" : "voice_button_missing";
         report({ kind: "failed", fault });

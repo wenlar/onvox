@@ -51,6 +51,10 @@ pub struct Session {
     pub overlay_ok: AtomicBool,
     /// Bumped on every finished load, so an older load's polling stops.
     loads: AtomicU64,
+    /// The page's last login answer; closing the site window finishes setup only after a login.
+    logged_in: AtomicBool,
+    /// Given to driver.js for this run; a report without it did not come from Onvox's script.
+    pub token: String,
 }
 
 /// Called by the site window as a page starts and finishes loading. The document loading is not
@@ -151,10 +155,14 @@ pub fn apply_effects(app: &AppHandle, effects: Vec<Effect>) {
 }
 
 #[tauri::command]
-fn page_report(report: PageReport, app: AppHandle) {
+fn page_report(report: PageReport, token: String, app: AppHandle) {
     let session = app.state::<Session>();
+    if token != session.token {
+        return;
+    }
     match report {
         PageReport::LoggedIn | PageReport::LoginNeeded => {
+            session.logged_in.store(report == PageReport::LoggedIn, Ordering::SeqCst);
             page_ready(&app);
             // Only a check the user started by picking a site opens a window; never pop one on its own.
             if !session.checking_login.swap(false, Ordering::SeqCst) {
@@ -226,14 +234,16 @@ fn switch_provider(app: &AppHandle, p: Provider) {
 fn open_provider(app: &AppHandle) -> Option<tauri::WebviewWindow> {
     let win = provider::open(app, &current_site(app)?).ok()?;
     let handle = app.clone();
-    // Closing the site window after login hides it and finishes the setup.
+    // Closing the site window hides it; after a login it also finishes the setup.
     win.on_window_event(move |e| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = e {
             api.prevent_close();
             if let Some(w) = handle.get_webview_window(provider::LABEL) {
                 provider::hide(&w);
             }
-            finish_setup(&handle);
+            if handle.state::<Session>().logged_in.load(Ordering::SeqCst) {
+                finish_setup(&handle);
+            }
         }
     });
     Some(win)
@@ -279,6 +289,15 @@ pub fn on_menu(app: &AppHandle, id: &str) {
         }
         "hotkey" => {
             let _ = open_page(app, "hotkey", text::Key::HotkeyTitle, (420.0, 260.0));
+        }
+        "updated" => {
+            use tauri_plugin_opener::OpenerExt;
+            // Shown until read: the click opens the notes and removes the line.
+            let v = app.state::<update::Updates>().just_updated.lock().unwrap().take();
+            if let Some(v) = v {
+                let _ = app.opener().open_url(update::notes_url(&v), None::<&str>);
+            }
+            tray::refresh(app);
         }
         "obs" => {
             use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -332,7 +351,8 @@ pub fn run() {
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _, ev| {
-                    if ev.state == ShortcutState::Pressed {
+                    // While the hotkey window is open the user is choosing keys, not talking.
+                    if ev.state == ShortcutState::Pressed && app.get_webview_window("hotkey").is_none() {
                         dispatch(app, Event::Hotkey);
                     }
                 })
@@ -357,15 +377,22 @@ pub fn run() {
                 page_ready: AtomicBool::new(false),
                 loads: AtomicU64::new(0),
                 overlay_ok: AtomicBool::new(false),
+                logged_in: AtomicBool::new(false),
+                token: provider::new_token(),
             });
             let phase = app.state::<Session>().phase.clone();
             let overlay_ok = overlay::serve(overlay::OVERLAY_PORT, phase).is_ok();
             app.state::<Session>().overlay_ok.store(overlay_ok, Ordering::SeqCst);
             let handle = app.handle().clone();
-            std::thread::spawn(move || {
+            // Every 6 hours, so a site fix in selectors.json reaches a copy that stays open for days.
+            std::thread::spawn(move || loop {
                 let fresh = selectors::load();
-                *handle.state::<Sites>().0.lock().unwrap() = fresh;
-                tray::refresh(&handle);
+                let changed = *handle.state::<Sites>().0.lock().unwrap() != fresh;
+                if changed {
+                    *handle.state::<Sites>().0.lock().unwrap() = fresh;
+                    tray::refresh(&handle);
+                }
+                std::thread::sleep(std::time::Duration::from_secs(6 * 3600));
             });
             tray::build(app.handle())?;
             update::spawn(app.handle());

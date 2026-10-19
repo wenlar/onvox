@@ -58,7 +58,7 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             app,
             "updated",
             t(Key::JustUpdated, l).replace("{v}", &v),
-            false,
+            true,
             None::<&str>,
         )?)?;
     }

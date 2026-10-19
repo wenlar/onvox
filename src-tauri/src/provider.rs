@@ -23,7 +23,7 @@ pub fn open(app: &AppHandle, site: &SiteSelectors) -> tauri::Result<WebviewWindo
         .skip_taskbar(true)
         .background_throttling(BackgroundThrottlingPolicy::Disabled)
         .additional_browser_args(BROWSER_ARGS)
-        .initialization_script(include_str!("driver.js"))
+        .initialization_script(driver_script(&app.state::<crate::Session>().token))
         .on_page_load(|win, payload| {
             crate::page_loaded(win.app_handle(), payload.event() == tauri::webview::PageLoadEvent::Finished)
         })
@@ -65,4 +65,35 @@ pub fn show_for_login(win: &WebviewWindow) {
 
 pub fn hide(win: &WebviewWindow) {
     let _ = win.hide();
+}
+
+/// driver.js with this run's report token in it.
+pub fn driver_script(token: &str) -> String {
+    include_str!("driver.js").replace("__ONVOX_TOKEN__", token)
+}
+
+/// 128 random bits from the standard library's per-process hash keys.
+// shortcut: RandomState is not a CSPRNG, enough to keep page scripts from guessing; use getrandom if it must resist more.
+pub fn new_token() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    let part = || std::collections::hash_map::RandomState::new().build_hasher().finish();
+    format!("{:016x}{:016x}", part(), part())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn script_carries_the_token() {
+        let s = driver_script("abc123");
+        assert!(s.contains(r#"const TOKEN = "abc123";"#), "{s}");
+        assert!(!s.contains("__ONVOX_TOKEN__"));
+    }
+
+    #[test]
+    fn tokens_differ() {
+        assert_ne!(new_token(), new_token());
+        assert_eq!(new_token().len(), 32);
+    }
 }
