@@ -53,7 +53,7 @@ The same Azure Artifact Signing account and certificate profile as Gezik (`wenla
 its own federated credential on the app registration: GitHub Actions, organization `wenlar`,
 repository `onvox`, entity **Environment**, name `release`.
 
-The workflow logs in to Azure with that credential, installs `trusted-signing-cli`, and passes
+The workflow logs in to Azure with that credential, installs Microsoft's signing dlib for `signtool`, and passes
 Tauri a `signCommand` through `--config`, so Tauri signs `onvox.exe` and the installer. Without
 the repository variables (a fork) the steps are skipped and the build is unsigned. Check a run:
 `Get-AuthenticodeSignature Onvox_<v>_x64-setup.exe` says `Valid` with Wenlar LLC (the

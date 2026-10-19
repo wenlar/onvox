@@ -80,10 +80,20 @@ jobs:
           AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
           AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
           AZURE_CERT_PROFILE: ${{ vars.AZURE_CERT_PROFILE }}
+        # signtool with Microsoft's signing dlib, which uses the azure/login session above
+        # (as azure/artifact-signing-action does), so no client secret is needed.
         run: |
-          cargo install trusted-signing-cli --locked
-          $cmd = "trusted-signing-cli -e $env:AZURE_SIGNING_ENDPOINT -a $env:AZURE_SIGNING_ACCOUNT -c $env:AZURE_CERT_PROFILE -d Onvox %1"
-          @{ bundle = @{ windows = @{ signCommand = $cmd } } } | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 sign.json
+          nuget install Microsoft.Trusted.Signing.Client -Version 1.0.95 -OutputDirectory "$env:RUNNER_TEMP\ts" -NonInteractive | Out-Null
+          $dlib = (Get-ChildItem "$env:RUNNER_TEMP\ts" -Recurse -Filter Azure.CodeSigning.Dlib.dll | Where-Object FullName -like '*x64*' | Select-Object -First 1).FullName
+          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1).FullName
+          if (-not $dlib -or -not $signtool) { throw "dlib: $dlib signtool: $signtool" }
+          $meta = "$env:RUNNER_TEMP\metadata.json"
+          @{ Endpoint = $env:AZURE_SIGNING_ENDPOINT; CodeSigningAccountName = $env:AZURE_SIGNING_ACCOUNT
+             CertificateProfileName = $env:AZURE_CERT_PROFILE } | ConvertTo-Json | Set-Content -Encoding utf8NoBOM $meta
+          $signArgs = @('sign', '/v', '/fd', 'SHA256', '/tr', 'http://timestamp.acs.microsoft.com', '/td', 'SHA256',
+                        '/d', 'Onvox', '/dlib', $dlib, '/dmdf', $meta, '%1')
+          @{ bundle = @{ windows = @{ signCommand = @{ cmd = $signtool; args = $signArgs } } } } |
+            ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8NoBOM sign.json
       - name: Build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
