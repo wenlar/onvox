@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "local",
+  "description": "The app's own pages",
+  "windows": ["setup", "hotkey"],
+  "permissions": ["core:default"]
+}
