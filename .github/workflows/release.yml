@@ -1,0 +1,147 @@
+name: Release
+
+# A pushed tag `v<version>` builds the signed installer and opens a draft GitHub Release with it;
+# by hand (Actions ▸ Release ▸ Run workflow, or `gh workflow run release.yml -f version=0.1.0`)
+# it only builds and uploads it as a workflow artifact. See docs/releasing.md.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version written into the installer (e.g. 0.1.0)"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - id: v
+        env:
+          INPUT: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then v=${GITHUB_REF_NAME#v}; else v=$INPUT; fi
+          echo "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "bad version: $v"; exit 1; }
+          cargo=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          # A tag must match Cargo.toml, so the app and its installer agree.
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$v" != "$cargo" ]; then
+            echo "tag $GITHUB_REF_NAME does not match Cargo.toml version $cargo"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    # Azure trusts this job's OIDC token through a federated credential bound to the
+    # `release` environment.
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      # dtolnay/rust-toolchain has no release tags: pinned to the `stable` branch's commit.
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2.9.2
+        with:
+          key: release
+      - run: cargo install tauri-cli --version "^2" --locked
+      # Tauri reads the version from Cargo.toml; a run by hand may build another one.
+      - name: Set version
+        shell: bash
+        run: sed -i "0,/^version = \".*\"/s//version = \"$VERSION\"/" Cargo.toml
+      # Authenticode signing with Azure Artifact Signing (docs/releasing.md#windows-signing).
+      # Skipped until the repository variables exist, so unsigned builds still work.
+      - if: vars.AZURE_SIGNING_ACCOUNT != ''
+        uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      # Tauri runs the sign command on the app and on the installer. It lives here, not in
+      # tauri.conf.json, so a local build stays unsigned instead of failing.
+      - name: Signing config
+        if: vars.AZURE_SIGNING_ACCOUNT != ''
+        env:
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_CERT_PROFILE: ${{ vars.AZURE_CERT_PROFILE }}
+        run: |
+          cargo install trusted-signing-cli --locked
+          $cmd = "trusted-signing-cli -e $env:AZURE_SIGNING_ENDPOINT -a $env:AZURE_SIGNING_ACCOUNT -c $env:AZURE_CERT_PROFILE -d Onvox %1"
+          @{ bundle = @{ windows = @{ signCommand = $cmd } } } | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 sign.json
+      - name: Build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $sign = if (Test-Path sign.json) { @('--config', (Resolve-Path sign.json).Path) } else { @() }
+          cargo tauri build @sign
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      # latest.json is what installed copies read (tauri.conf.json plugins.updater.endpoints).
+      - name: Package
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          $setup = "Onvox_${env:VERSION}_x64-setup.exe"
+          Copy-Item "target\release\bundle\nsis\$setup", "target\release\bundle\nsis\$setup.sig" dist
+          $item = Get-Item "dist\$setup"
+          "{0:N1} MB" -f ($item.Length / 1MB)
+          if ($item.Length -gt 15MB) { throw "installer is over 15 MB" }
+          @{
+            version   = $env:VERSION
+            notes     = ""
+            pub_date  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = (Get-Content -Raw "dist\$setup.sig").Trim()
+                url       = "https://github.com/wenlar/onvox/releases/download/v$env:VERSION/$setup"
+              }
+            }
+          } | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8NoBOM dist\latest.json
+          Get-AuthenticodeSignature "dist\$setup" | Format-List Status, SignerCertificate
+          Get-ChildItem dist
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push'
+    needs: [version, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          # A version with a suffix (0.1.0-rc.1) is marked as a pre-release.
+          pre=(); case "$VERSION" in *-*) pre=(--prerelease) ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --draft "${pre[@]}" \
+            --verify-tag --title "Onvox $VERSION" --generate-notes

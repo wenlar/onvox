@@ -29,3 +29,23 @@ Run on a real Windows machine before a release. Tick each item.
 - [ ] Tray "Copy OBS overlay address" puts `http://127.0.0.1:38517/overlay` on the clipboard.
 - [ ] OBS > Sources > Browser, that URL, 300x80: transparent while idle; a pill with a purple dot and "AI" while voice starts (dim dot) and talks (pulsing dot); gone after stop.
 - [ ] With another program on port 38517, Onvox still starts and the tray item reads "OBS overlay off: port 38517 is used by another app".
+
+## Updates, autostart, reporting (Task 8)
+
+- [ ] After the first setup, Onvox is in Task Manager > Startup apps and starts with Windows.
+- [ ] Install version A, publish a higher version B: within a minute of starting A, the tray shows "Version B is ready" and "Update and restart"; clicking it installs B and the tray shows "Updated to Onvox B".
+- [ ] While talking, "Update and restart" gives the error beep and installs nothing; after stopping it works.
+- [ ] Quitting from the tray with an update ready installs it.
+- [ ] "Report a problem" opens a GitHub issue with only the version, the site and the state.
+
+## Release (Task 9)
+
+- [ ] `gh workflow run release.yml -f version=0.1.0-rc.1`: the artifact's installer is `Valid`, signed by Wenlar LLC, under 15 MB; `latest.json` has the version, the `.sig` text and the download URL.
+
+## Review focus
+
+- [ ] Logged out of the site, press the hotkey: error beep, red dot, "Login needed"; no window opens on its own.
+- [ ] No internet at start: Onvox starts, uses the built-in selectors; the tray says what fails on a press.
+- [ ] Update ready while talking: nothing is installed until the talk ends.
+- [ ] A game in exclusive fullscreen keeps focus through start and stop.
+- [ ] The site redesigns its voice button: fix `selectors.json` on `main`; running copies pick it up at their next start.
