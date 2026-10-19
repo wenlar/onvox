@@ -127,6 +127,17 @@ mod tests {
     }
 
     #[test]
+    fn consent_lists_have_no_generic_buttons() {
+        // A bare "Accept"/"Decline" could answer a terms or login dialog for the user.
+        let s = embedded();
+        for site in [s.chatgpt.unwrap(), s.grok.unwrap()] {
+            for entry in &site.consent_dismiss {
+                assert!(!["text:Accept", "text:Decline"].contains(&entry.as_str()), "{entry}");
+            }
+        }
+    }
+
+    #[test]
     fn remote_failure_falls_back_to_embedded() {
         assert_eq!(load_from("http://127.0.0.1:1/selectors.json"), embedded());
     }

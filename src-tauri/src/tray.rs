@@ -51,11 +51,13 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let menu = Menu::new(app)?;
     menu.append(&MenuItem::with_id(app, "status", current_status(app, &phase, l), false, None::<&str>)?)?;
     let updates = app.state::<crate::update::Updates>();
-    if let Some(v) = updates.just_updated.lock().unwrap().as_deref() {
+    // Copied out: building menu items waits for the main thread, so no lock may be held across it.
+    let just_updated = updates.just_updated.lock().unwrap().clone();
+    if let Some(v) = just_updated {
         menu.append(&MenuItem::with_id(
             app,
             "updated",
-            t(Key::JustUpdated, l).replace("{v}", v),
+            t(Key::JustUpdated, l).replace("{v}", &v),
             false,
             None::<&str>,
         )?)?;

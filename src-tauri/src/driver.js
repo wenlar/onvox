@@ -31,7 +31,9 @@
   const watch = (fn) => { clearInterval(timer); timer = setInterval(fn, 500); };
 
   // Answers a cookie banner, preferring "reject non-essential": the list is ordered that way.
+  // Only on the sites themselves: never on a login provider's pages.
   const dismissConsent = (sel) => {
+    if (!/(^|\.)(chatgpt|grok)\.com$/.test(location.hostname)) return;
     const b = find(sel.consent_dismiss || []);
     if (b) b.click();
   };
@@ -55,6 +57,8 @@
           clearInterval(timer);
           return report({ kind: "failed", fault: "limit_reached" });
         }
+        // Already talking (a resent press after the page got ready): just watch it.
+        if (find(sel.voice_active)) return monitor(sel, null);
         const button = find(sel.start_voice);
         if (button) return monitor(sel, button);
         if (Date.now() < until) return;
@@ -80,7 +84,7 @@
 
   // Clicks the voice button, then reports when voice mode comes up and when it ends.
   function monitor(sel, button) {
-    button.click();
+    if (button) button.click();
     let active = false;
     watch(() => {
       if (limitShown(sel.limit_texts)) {

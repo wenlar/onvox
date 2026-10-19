@@ -41,6 +41,8 @@ pub enum Event {
     Report(PageReport),
     StartTimeout,
     NewChat,
+    /// The page reloaded or its renderer died; any voice in it is gone.
+    PageLost,
 }
 
 /// Only errors beep: the sites already chime when voice starts and stops.
@@ -76,6 +78,7 @@ pub fn step(phase: &Phase, ev: Event) -> (Phase, Vec<Effect>) {
         (Idle | Error(_), Event::Hotkey) => (Starting, vec![Effect::Icon(Icon::Active), StartVoice]),
         (Starting, Event::Report(PageReport::VoiceStarted)) => (Listening, vec![]),
         (Starting | Listening, Event::Hotkey | Event::NewChat) => (Idle, stopped()),
+        (Starting | Listening, Event::PageLost) => (Idle, vec![Effect::Icon(Icon::Idle)]),
         (Listening, Event::Report(PageReport::VoiceEnded)) => (Idle, vec![Effect::Icon(Icon::Idle)]),
         (Starting | Listening, Event::Report(PageReport::Failed(f))) => failed(f),
         (Starting, Event::StartTimeout) => failed(Fault::NoResponse),
@@ -145,6 +148,15 @@ mod tests {
             step(&Phase::Error(Fault::LimitReached), Event::Hotkey),
             (Phase::Starting, vec![Effect::Icon(Icon::Active), StartVoice])
         );
+    }
+
+    #[test]
+    fn page_lost_while_talking_goes_idle() {
+        // A reload or a renderer crash took the voice with it: nothing left to stop.
+        for phase in [Phase::Starting, Phase::Listening] {
+            assert_eq!(step(&phase, Event::PageLost), (Phase::Idle, vec![Effect::Icon(Icon::Idle)]));
+        }
+        assert_eq!(step(&Phase::Idle, Event::PageLost), (Phase::Idle, vec![]));
     }
 
     #[test]

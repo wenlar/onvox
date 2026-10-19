@@ -60,6 +60,7 @@ pub fn page_loaded(app: &AppHandle, finished: bool) {
     let session = app.state::<Session>();
     if !finished {
         session.page_ready.store(false, Ordering::SeqCst);
+        dispatch(app, Event::PageLost);
         tray::set_icon(app, state::Icon::Loading);
         tray::refresh(app);
         return;
@@ -126,7 +127,9 @@ pub fn apply_effects(app: &AppHandle, effects: Vec<Effect>) {
             Effect::Beep(b) => beep::play(b),
             Effect::Icon(i) => tray::set_icon(app, i),
             Effect::StartVoice => {
-                if let (Some(win), Some(site)) = (&win, &site) {
+                // While the page loads, page_ready sends it instead, so it reaches the page only once.
+                let ready = app.state::<Session>().page_ready.load(Ordering::SeqCst);
+                if let (true, Some(win), Some(site)) = (ready, &win, &site) {
                     provider::start_voice(win, site);
                 }
                 let n = app.state::<Session>().starts.fetch_add(1, Ordering::SeqCst) + 1;
@@ -175,11 +178,10 @@ fn check_login(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(35));
-        // No answer (site changed or offline): show it, so the user sees what is wrong.
+        // No answer (site changed or offline): the user may be back in a game by now, so only
+        // the error beep; "Log in again" shows the page.
         if app.state::<Session>().checking_login.swap(false, Ordering::SeqCst) {
-            if let Some(win) = app.get_webview_window(provider::LABEL) {
-                provider::show_for_login(&win);
-            }
+            beep::play(state::Beep::Error);
         }
     });
 }
@@ -320,6 +322,8 @@ pub fn on_menu(app: &AppHandle, id: &str) {
 
 pub fn run() {
     tauri::Builder::default()
+        // First: a second copy (started again from the Start menu) quits before it does anything.
+        .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
