@@ -13,7 +13,7 @@
   "plugins": {
     "updater": {
       "endpoints": ["https://github.com/wenlar/onvox/releases/latest/download/latest.json"],
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgyNDJCRTNFNzZBNENENUYKUldSZnphUjJQcjVDZ2czSkk2YjdzVjFZYm9tMXlMZ3ZqNXdDdThyV3dITlV5QWNwLzlYaENVUmMK",
       "windows": { "installMode": "passive" }
     }
   }
