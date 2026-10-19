@@ -33,7 +33,7 @@
   // Answers a cookie banner, preferring "reject non-essential": the list is ordered that way.
   // Only on the sites themselves: never on a login provider's pages.
   const dismissConsent = (sel) => {
-    if (!/(^|\.)(chatgpt|grok)\.com$/.test(location.hostname)) return;
+    if (!/(^|\.)(chatgpt\.com|grok\.com|claude\.ai)$/.test(location.hostname)) return;
     const b = find(sel.consent_dismiss || []);
     if (b) b.click();
   };

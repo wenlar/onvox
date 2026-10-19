@@ -30,6 +30,8 @@ pub struct Selectors {
     pub chatgpt: Option<SiteSelectors>,
     #[serde(default)]
     pub grok: Option<SiteSelectors>,
+    #[serde(default)]
+    pub claude: Option<SiteSelectors>,
 }
 
 impl Selectors {
@@ -37,6 +39,7 @@ impl Selectors {
         match p {
             Provider::ChatGpt => self.chatgpt.as_ref(),
             Provider::Grok => self.grok.as_ref(),
+            Provider::Claude => self.claude.as_ref(),
         }
     }
 }
@@ -46,7 +49,7 @@ pub fn parse(json: &str) -> Result<Selectors, String> {
     if s.schema != 1 {
         return Err(format!("unknown schema {}", s.schema));
     }
-    for site in [&s.chatgpt, &s.grok].into_iter().flatten() {
+    for site in [&s.chatgpt, &s.grok, &s.claude].into_iter().flatten() {
         if site.start_voice.is_empty() || site.stop_voice.is_empty() || site.voice_active.is_empty() {
             return Err("a site has no voice selectors".into());
         }
@@ -62,6 +65,10 @@ pub fn embedded() -> Selectors {
 }
 
 pub fn load() -> Selectors {
+    // A debug build tries the local selectors.json, not what main has published.
+    if cfg!(debug_assertions) {
+        return embedded();
+    }
     load_from(REMOTE_URL)
 }
 
@@ -91,6 +98,7 @@ mod tests {
         assert_eq!(s.schema, 1);
         assert!(s.site(Provider::ChatGpt).is_some());
         assert!(s.site(Provider::Grok).is_some());
+        assert!(s.site(Provider::Claude).is_some());
     }
 
     #[test]
@@ -130,7 +138,7 @@ mod tests {
     fn consent_lists_have_no_generic_buttons() {
         // A bare "Accept"/"Decline" could answer a terms or login dialog for the user.
         let s = embedded();
-        for site in [s.chatgpt.unwrap(), s.grok.unwrap()] {
+        for site in [s.chatgpt.unwrap(), s.grok.unwrap(), s.claude.unwrap()] {
             for entry in &site.consent_dismiss {
                 assert!(!["text:Accept", "text:Decline"].contains(&entry.as_str()), "{entry}");
             }

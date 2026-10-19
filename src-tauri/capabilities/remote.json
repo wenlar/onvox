@@ -3,6 +3,6 @@
   "identifier": "remote",
   "description": "The provider site may only report voice events",
   "windows": ["provider"],
-  "remote": { "urls": ["https://chatgpt.com/*", "https://grok.com/*"] },
+  "remote": { "urls": ["https://chatgpt.com/*", "https://grok.com/*", "https://claude.ai/*"] },
   "permissions": ["allow-page-report"]
 }

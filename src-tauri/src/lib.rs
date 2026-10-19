@@ -270,6 +270,7 @@ pub fn on_menu(app: &AppHandle, id: &str) {
     match id {
         "p:chatgpt" => switch_provider(app, Provider::ChatGpt),
         "p:grok" => switch_provider(app, Provider::Grok),
+        "p:claude" => switch_provider(app, Provider::Claude),
         "new_chat" => {
             dispatch(app, Event::NewChat);
             if let (Some(win), Some(site)) = (app.get_webview_window(provider::LABEL), current_site(app)) {

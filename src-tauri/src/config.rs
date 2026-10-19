@@ -10,6 +10,7 @@ pub enum Provider {
     #[serde(rename = "chatgpt")]
     ChatGpt,
     Grok,
+    Claude,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,10 +87,16 @@ mod tests {
     }
 
     #[test]
+    fn claude_is_stored_as_claude() {
+        let c = Config { provider: Provider::Claude, ..Config::default() };
+        assert!(serde_json::to_string(&c).unwrap().contains(r#""provider":"claude""#));
+    }
+
+    #[test]
     fn unknown_provider_gives_default() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
-        std::fs::write(&path, r#"{"provider":"claude","hotkey":"F9","setup_done":true}"#).unwrap();
+        std::fs::write(&path, r#"{"provider":"gemini","hotkey":"F9","setup_done":true}"#).unwrap();
         assert_eq!(load(&path), Config::default());
     }
 

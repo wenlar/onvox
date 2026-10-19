@@ -30,5 +30,15 @@
       "text:Accept All",
       "text:Accept all cookies"
     ]
+  },
+  "claude": {
+    "home_url": "https://claude.ai/new",
+    "new_chat_url": "https://claude.ai/new",
+    "start_voice": ["button[aria-label=\"Use voice mode\"]"],
+    "stop_voice": ["text:Stop"],
+    "voice_active": ["button[aria-label=\"Turn off microphone\"]", "button[aria-label=\"Turn on microphone\"]"],
+    "logged_out": ["input[type=\"email\"]", "text:Continue with Google", "text:Continue with email"],
+    "limit_texts": ["reached your limit", "hit your limit", "usage limit", "limit reached", "out of free messages"],
+    "consent_dismiss": ["text:Reject all", "text:Reject non-essential", "text:Accept all", "text:Accept all cookies"]
   }
 }

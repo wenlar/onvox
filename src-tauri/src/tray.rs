@@ -68,7 +68,11 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         menu.append(&MenuItem::with_id(app, "update", t(Key::MenuUpdate, l), true, None::<&str>)?)?;
     }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    for (p, id, name) in [(Provider::ChatGpt, "p:chatgpt", "ChatGPT"), (Provider::Grok, "p:grok", "Grok")] {
+    for (p, id, name) in [
+        (Provider::ChatGpt, "p:chatgpt", "ChatGPT"),
+        (Provider::Grok, "p:grok", "Grok"),
+        (Provider::Claude, "p:claude", "Claude"),
+    ] {
         if sites.site(p).is_some() {
             menu.append(&CheckMenuItem::with_id(app, id, name, true, p == provider, None::<&str>)?)?;
         }

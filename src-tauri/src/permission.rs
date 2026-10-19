@@ -5,9 +5,9 @@ pub use webview2_com::Microsoft::Web::WebView2::Win32::{
     COREWEBVIEW2_PERMISSION_KIND, COREWEBVIEW2_PERMISSION_KIND_CAMERA, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
 };
 
-const HOSTS: [&str; 2] = ["chatgpt.com", "grok.com"];
+const HOSTS: [&str; 3] = ["chatgpt.com", "grok.com", "claude.ai"];
 
-/// Only the microphone, only over https, only on the two sites and their subdomains.
+/// Only the microphone, only over https, only on the three sites and their subdomains.
 pub fn is_allowed(uri: &str, kind: COREWEBVIEW2_PERMISSION_KIND) -> bool {
     let Ok(url) = Url::parse(uri) else { return false };
     let host = url.host_str().unwrap_or("");
@@ -50,6 +50,12 @@ mod tests {
     #[test]
     fn mic_allowed_on_grok_subdomain() {
         assert!(is_allowed("https://assets.grok.com/x", COREWEBVIEW2_PERMISSION_KIND_MICROPHONE));
+    }
+
+    #[test]
+    fn mic_allowed_on_claude() {
+        assert!(is_allowed("https://claude.ai/new", COREWEBVIEW2_PERMISSION_KIND_MICROPHONE));
+        assert!(!is_allowed("https://claude.ai.evil.com/", COREWEBVIEW2_PERMISSION_KIND_MICROPHONE));
     }
 
     #[test]

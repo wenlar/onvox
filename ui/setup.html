@@ -22,8 +22,10 @@
 <div class="choices">
   <button data-p="chatgpt">ChatGPT</button>
   <button data-p="grok">Grok</button>
+  <button data-p="claude">Claude</button>
 </div>
 <p data-t="login"></p>
+<p data-t="claude"></p>
 <small data-t="terms"></small>
 <script>
   // The app passes the Windows UI language; the browser's own language is forced to English for the sites.
@@ -32,11 +34,13 @@
     title: "Onvox'a hoş geldin",
     intro: "Hangi yapay zekâyla konuşmak istiyorsun? Kendi aboneliğin kullanılır.",
     login: "Seçince sitenin penceresi açılır. Giriş yaptıktan sonra o pencereyi kapat; Onvox tepside çalışmaya devam eder.",
+    claude: "Claude'da yankı engelleme yok: hoparlörden kendi sesini duyar, kulaklıkla kullan.",
     terms: "Onvox sitenin kendi sesli modunu senin hesabınla kullanır. Sitenin kullanım şartları ve sınırları geçerlidir.",
   } : {
     title: "Welcome to Onvox",
     intro: "Which AI do you want to talk to? Your own subscription is used.",
     login: "After you choose, the site's window opens. Log in, then close that window; Onvox keeps running in the tray.",
+    claude: "Claude has no echo cancellation: it hears itself from speakers, so use headphones.",
     terms: "Onvox uses the site's own voice mode with your account. The site's terms and limits apply.",
   };
   document.documentElement.lang = tr ? "tr" : "en";
