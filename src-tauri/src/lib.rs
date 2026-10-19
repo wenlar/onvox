@@ -1,4 +1,5 @@
 pub mod config;
+pub mod state;
 pub mod text;
 
 use std::sync::Mutex;
