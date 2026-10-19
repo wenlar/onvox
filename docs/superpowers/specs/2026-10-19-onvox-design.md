@@ -60,9 +60,42 @@ Hedef kitle teknik olmayan yayıncılar: API anahtarı, hesap kurulumu, ayar dos
 - WebView2 (Windows 11'de hazır), Tauri tray + global-shortcut eklentileri, Tauri bundler
   (NSIS/MSI), Windows kod imzalama, Tauri updater.
 - Kurulum boyutu küçük olmalı (hedef: birkaç MB).
-- **Kod imzalama (kararlaştırıldı):** Gezik'te kullanılan Azure Trusted Signing hesabı ve
-  sertifika profili. CI'daki imzalama adımı Gezik'in release iş akışından (`wenlar/gezik`
-  → `.github/`) örnek alınır; exe ve NSIS kurulum dosyası imzalanır.
+- **Kod imzalama (kararlaştırıldı):** Gezik'te kullanılan Azure Trusted Signing (Artifact
+  Signing) hesabı ve sertifika profili. exe, NSIS kurulum dosyası ve kaldırıcı imzalanır.
+
+## Release iş akışı (Gezik'in `.github/workflows/release.yml`'inden)
+
+Gezik'ten aynen alınacaklar:
+
+- `v<sürüm>` etiketi push'lanınca derlenir ve **taslak** (draft) GitHub Release açılır; elle
+  çalıştırma (`workflow_dispatch`) sadece derleyip artifact yükler.
+- `version` işi: etiket `Cargo.toml` sürümüyle tutmazsa iş durur. Onvox'ta `tauri.conf.json`
+  sürümü de aynı olmalı (ya da oradan Cargo sürümü okunmalı).
+- `-` içeren sürüm (`0.1.0-rc.1`) `--prerelease` olarak işaretlenir.
+- Azure girişi OIDC ile: `release` ortamına (environment) bağlı federe kimlik, `id-token: write`;
+  `vars.AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID / AZURE_SIGNING_ENDPOINT /
+  AZURE_SIGNING_ACCOUNT / AZURE_CERT_PROFILE`. Değişkenler yoksa imzalama atlanır, imzasız
+  derleme yine çalışır.
+- Zaman damgası `http://timestamp.acs.microsoft.com`, SHA256.
+- `SHA256SUMS.txt`, sürümü sabitlenmiş (pinned) action'lar, `--generate-notes`.
+
+Onvox'ta farklı olanlar:
+
+- Sadece Windows işi (macOS/Linux yok).
+- Paket zip değil, `cargo tauri build` ile NSIS kurulum dosyası.
+- İmzalama ayrı bir adım olarak değil, Tauri'nin `bundle.windows.signCommand` ayarıyla yapılır
+  (ör. `trusted-signing-cli`, `azure/login` sonrası Azure CLI kimliğiyle). Sebep: Tauri hem
+  içteki exe'yi hem kurulum dosyasını paketlerken imzalamalı, ve güncelleme imzası (`.sig`)
+  Authenticode imzalı kurulum dosyası üzerinden hesaplanmalı; sonradan imzalanırsa `.sig` bozulur.
+- Release'e ek olarak `.sig` ve `latest.json` yüklenir. Taslak release yayınlanana kadar
+  `releases/latest/download/latest.json` onu görmez, yani güncelleme yayıncılara ancak
+  release elle yayınlanınca gider (Gezik'teki taslak → yayın adımıyla aynı).
+- `TAURI_SIGNING_PRIVATE_KEY` (+ parolası) GitHub Secrets'ta.
+
+**Yapılması gereken (Azure tarafı, Teoman):** federe kimlik depoya bağlı olduğu için Azure'daki
+uygulama kaydına `wenlar/onvox` için yeni bir federated credential eklenmeli
+(konu: `repo:wenlar/onvox:environment:release`) ve imzalama hesabında aynı rol geçerli olmalı.
+Sertifika profili aynı kalır.
 
 ## Kullanıcı deneyimi
 
