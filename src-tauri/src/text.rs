@@ -19,10 +19,13 @@ pub fn lang() -> Lang {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Key {
     AppName,
+    SetupTitle,
 }
 
 pub fn t(key: Key, lang: Lang) -> &'static str {
     match (key, lang) {
         (Key::AppName, _) => "Onvox",
+        (Key::SetupTitle, Lang::Tr) => "Onvox kurulumu",
+        (Key::SetupTitle, Lang::En) => "Onvox setup",
     }
 }

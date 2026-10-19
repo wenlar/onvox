@@ -1,5 +1,48 @@
 <!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><title>Onvox</title></head>
-<body></body>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Onvox</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #1a1a1a; --muted: #666; --line: #ddd; --accent: #6b4de6; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1e1e1e; --fg: #eee; --muted: #aaa; --line: #444; } }
+  body { margin: 0; padding: 24px; font: 14px/1.5 "Segoe UI", sans-serif; background: var(--bg); color: var(--fg); }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { margin: 0 0 16px; color: var(--muted); }
+  .choices { display: flex; gap: 12px; margin-bottom: 16px; }
+  button { flex: 1; padding: 14px; font: inherit; font-weight: 600; border: 1px solid var(--line); border-radius: 8px;
+           background: transparent; color: var(--fg); cursor: pointer; }
+  button:hover, button:focus-visible { border-color: var(--accent); outline: none; }
+  small { color: var(--muted); }
+</style>
+</head>
+<body>
+<h1 data-t="title"></h1>
+<p data-t="intro"></p>
+<div class="choices">
+  <button data-p="chatgpt">ChatGPT</button>
+  <button data-p="grok">Grok</button>
+</div>
+<p data-t="login"></p>
+<small data-t="terms"></small>
+<script>
+  // The app passes the Windows UI language; the browser's own language is forced to English for the sites.
+  const tr = new URLSearchParams(location.search).get("lang") === "tr";
+  const text = tr ? {
+    title: "Onvox'a hoş geldin",
+    intro: "Hangi yapay zekâyla konuşmak istiyorsun? Kendi aboneliğin kullanılır.",
+    login: "Seçince sitenin penceresi açılır. Giriş yaptıktan sonra o pencereyi kapat; Onvox tepside çalışmaya devam eder.",
+    terms: "Onvox sitenin kendi sesli modunu senin hesabınla kullanır. Sitenin kullanım şartları ve sınırları geçerlidir.",
+  } : {
+    title: "Welcome to Onvox",
+    intro: "Which AI do you want to talk to? Your own subscription is used.",
+    login: "After you choose, the site's window opens. Log in, then close that window; Onvox keeps running in the tray.",
+    terms: "Onvox uses the site's own voice mode with your account. The site's terms and limits apply.",
+  };
+  document.documentElement.lang = tr ? "tr" : "en";
+  document.querySelectorAll("[data-t]").forEach((e) => (e.textContent = text[e.dataset.t]));
+  document.querySelectorAll("[data-p]").forEach((b) =>
+    b.addEventListener("click", () => window.__TAURI_INTERNALS__.invoke("choose_provider", { p: b.dataset.p })));
+</script>
+</body>
 </html>
