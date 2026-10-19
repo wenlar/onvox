@@ -1,6 +1,7 @@
 pub mod beep;
 pub mod config;
 pub mod hotkey;
+pub mod overlay;
 pub mod permission;
 pub mod provider;
 pub mod selectors;
@@ -44,6 +45,8 @@ pub struct Session {
     checking_login: AtomicBool,
     /// False from a page load's start until the page shows its voice button or a login sign.
     pub page_ready: AtomicBool,
+    /// False when the overlay port was taken at start; the tray says so.
+    pub overlay_ok: AtomicBool,
     /// Bumped on every finished load, so an older load's polling stops.
     loads: AtomicU64,
 }
@@ -262,6 +265,10 @@ pub fn on_menu(app: &AppHandle, id: &str) {
         "hotkey" => {
             let _ = open_page(app, "hotkey", text::Key::HotkeyTitle, (420.0, 260.0));
         }
+        "obs" => {
+            use tauri_plugin_clipboard_manager::ClipboardExt;
+            let _ = app.clipboard().write_text(overlay::OVERLAY_URL);
+        }
         "relogin" => match app.get_webview_window(provider::LABEL) {
             Some(win) => provider::show_for_login(&win),
             None => {
@@ -288,6 +295,7 @@ pub fn on_menu(app: &AppHandle, id: &str) {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _, ev| {
@@ -310,7 +318,11 @@ pub fn run() {
                 checking_login: AtomicBool::new(false),
                 page_ready: AtomicBool::new(false),
                 loads: AtomicU64::new(0),
+                overlay_ok: AtomicBool::new(false),
             });
+            let phase = app.state::<Session>().phase.clone();
+            let overlay_ok = overlay::serve(overlay::OVERLAY_PORT, phase).is_ok();
+            app.state::<Session>().overlay_ok.store(overlay_ok, Ordering::SeqCst);
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 let fresh = selectors::load();

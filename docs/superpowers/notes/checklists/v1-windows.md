@@ -23,3 +23,9 @@ Run on a real Windows machine before a release. Tick each item.
 - [ ] A hotkey another app already owns is refused with a message; the old one keeps working.
 - [ ] Quit while talking: voice ends before the app exits.
 - [ ] The X button and minimize on the site window never lose it: "Log in again" brings it back.
+
+## OBS overlay (Task 7)
+
+- [ ] Tray "Copy OBS overlay address" puts `http://127.0.0.1:38517/overlay` on the clipboard.
+- [ ] OBS > Sources > Browser, that URL, 300x80: transparent while idle; a pill with a purple dot and "AI" while voice starts (dim dot) and talks (pulsing dot); gone after stop.
+- [ ] With another program on port 38517, Onvox still starts and the tray item reads "OBS overlay off: port 38517 is used by another app".

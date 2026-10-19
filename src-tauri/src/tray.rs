@@ -59,6 +59,9 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&MenuItem::with_id(app, "new_chat", t(Key::MenuNewChat, l), true, None::<&str>)?)?;
     menu.append(&MenuItem::with_id(app, "hotkey", t(Key::MenuHotkey, l), true, None::<&str>)?)?;
+    let overlay_ok = app.state::<crate::Session>().overlay_ok.load(std::sync::atomic::Ordering::SeqCst);
+    let obs = if overlay_ok { Key::MenuCopyOverlay } else { Key::MenuOverlayPortBusy };
+    menu.append(&MenuItem::with_id(app, "obs", t(obs, l), overlay_ok, None::<&str>)?)?;
     menu.append(&MenuItem::with_id(app, "relogin", t(Key::MenuRelogin, l), true, None::<&str>)?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&MenuItem::with_id(app, "quit", t(Key::MenuQuit, l), true, None::<&str>)?)?;

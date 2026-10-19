@@ -32,6 +32,8 @@ pub enum Key {
     MenuNewChat,
     MenuHotkey,
     MenuRelogin,
+    MenuCopyOverlay,
+    MenuOverlayPortBusy,
     MenuQuit,
 }
 
@@ -64,6 +66,10 @@ pub fn t(key: Key, lang: Lang) -> &'static str {
         (Key::MenuHotkey, Lang::En) => "Change hotkey…",
         (Key::MenuRelogin, Lang::Tr) => "Yeniden giriş yap",
         (Key::MenuRelogin, Lang::En) => "Log in again",
+        (Key::MenuCopyOverlay, Lang::Tr) => "OBS gösterge adresini kopyala",
+        (Key::MenuCopyOverlay, Lang::En) => "Copy OBS overlay address",
+        (Key::MenuOverlayPortBusy, Lang::Tr) => "OBS göstergesi kapalı: 38517 portu başka bir uygulamada",
+        (Key::MenuOverlayPortBusy, Lang::En) => "OBS overlay off: port 38517 is used by another app",
         (Key::MenuQuit, Lang::Tr) => "Çıkış",
         (Key::MenuQuit, Lang::En) => "Quit",
     }
