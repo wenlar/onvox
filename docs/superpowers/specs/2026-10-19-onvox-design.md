@@ -106,7 +106,9 @@ Sertifika profili aynı kalır.
 2. Yayıncı kendi hesabıyla giriş yapar; mikrofon izni bu adımda verilir.
 3. Pencere kapanır, program tepsiye iner. Windows açılışında otomatik başlar. *(benim kararım)*
 
-Giriş bilgileri/oturum WebView2 profilinde kalır; her sağlayıcı ayrı profil. *(benim kararım)*
+Giriş bilgileri/oturum tek bir WebView2 profilinde kalır; chatgpt.com ve grok.com çerezleri
+alan adına göre zaten ayrıdır, ayrı profil gerekmez. *(benim kararım; plan yazılırken
+"ayrı profil"den sadeleştirildi)*
 
 ### Yayın sırasında
 
