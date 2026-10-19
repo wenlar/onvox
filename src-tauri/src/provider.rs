@@ -1,7 +1,7 @@
 //! The hidden window that runs the site's own voice mode.
 
 use tauri::utils::config::BackgroundThrottlingPolicy;
-use tauri::{AppHandle, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::selectors::SiteSelectors;
 
@@ -24,6 +24,9 @@ pub fn open(app: &AppHandle, site: &SiteSelectors) -> tauri::Result<WebviewWindo
         .background_throttling(BackgroundThrottlingPolicy::Disabled)
         .additional_browser_args(BROWSER_ARGS)
         .initialization_script(include_str!("driver.js"))
+        .on_page_load(|win, payload| {
+            crate::page_loaded(win.app_handle(), payload.event() == tauri::webview::PageLoadEvent::Finished)
+        })
         .build()?;
     crate::permission::install(&win)?;
     Ok(win)
@@ -33,6 +36,10 @@ fn call(win: &WebviewWindow, method: &str, site: &SiteSelectors) {
     // The selectors go in as a JSON value; their text is never run as code.
     let json = serde_json::to_string(site).unwrap_or_default();
     let _ = win.eval(format!("window.__onvox && window.__onvox.{method}({json})"));
+}
+
+pub fn check_login(win: &WebviewWindow, site: &SiteSelectors) {
+    call(win, "checkLogin", site);
 }
 
 pub fn start_voice(win: &WebviewWindow, site: &SiteSelectors) {

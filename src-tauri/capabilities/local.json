@@ -3,5 +3,5 @@
   "identifier": "local",
   "description": "The app's own pages",
   "windows": ["setup", "hotkey"],
-  "permissions": ["core:default", "allow-choose-provider"]
+  "permissions": ["core:default", "allow-choose-provider", "allow-set-hotkey"]
 }

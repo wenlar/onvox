@@ -30,27 +30,40 @@
   let timer = null;
   const watch = (fn) => { clearInterval(timer); timer = setInterval(fn, 500); };
 
+  // Answers a cookie banner, preferring "reject non-essential": the list is ordered that way.
+  const dismissConsent = (sel) => {
+    const b = find(sel.consent_dismiss || []);
+    if (b) b.click();
+  };
+
+  let loginAnswered = false;
+
   window.__onvox = {
+    // Called repeatedly while the page loads; answers once, when either the voice button or a login sign shows.
+    checkLogin(sel) {
+      dismissConsent(sel);
+      if (loginAnswered) return;
+      if (find(sel.start_voice)) { loginAnswered = true; report({ kind: "logged_in" }); }
+      else if (find(sel.logged_out)) { loginAnswered = true; report({ kind: "login_needed" }); }
+    },
     start(sel) {
-      if (find(sel.logged_out)) return report({ kind: "failed", fault: "not_logged_in" });
-      if (limitShown(sel.limit_texts)) return report({ kind: "failed", fault: "limit_reached" });
-      const button = find(sel.start_voice);
-      if (!button) return report({ kind: "failed", fault: "voice_button_missing" });
-      button.click();
-      let active = false;
-      watch(() => {
+      // The page may still be loading: wait up to 8 s for the voice button before giving up.
+      const until = Date.now() + 8000;
+      const tryStart = () => {
+        dismissConsent(sel);
         if (limitShown(sel.limit_texts)) {
           clearInterval(timer);
           return report({ kind: "failed", fault: "limit_reached" });
         }
-        const now = !!find(sel.voice_active);
-        if (now && !active) report({ kind: "voice_started" });
-        if (!now && active) {
-          clearInterval(timer);
-          return report({ kind: "voice_ended" });
-        }
-        active = now;
-      });
+        const button = find(sel.start_voice);
+        if (button) return monitor(sel, button);
+        if (Date.now() < until) return;
+        clearInterval(timer);
+        const fault = find(sel.logged_out) ? "not_logged_in" : "voice_button_missing";
+        report({ kind: "failed", fault });
+      };
+      watch(tryStart);
+      tryStart();
     },
     stop(sel) {
       // For 10 s keep closing voice mode, in case it comes up after the user already cancelled.
@@ -64,4 +77,23 @@
       close();
     },
   };
+
+  // Clicks the voice button, then reports when voice mode comes up and when it ends.
+  function monitor(sel, button) {
+    button.click();
+    let active = false;
+    watch(() => {
+      if (limitShown(sel.limit_texts)) {
+        clearInterval(timer);
+        return report({ kind: "failed", fault: "limit_reached" });
+      }
+      const now = !!find(sel.voice_active);
+      if (now && !active) report({ kind: "voice_started" });
+      if (!now && active) {
+        clearInterval(timer);
+        return report({ kind: "voice_ended" });
+      }
+      active = now;
+    });
+  }
 })();

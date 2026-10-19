@@ -21,6 +21,9 @@ pub enum PageReport {
     VoiceStarted,
     VoiceEnded,
     Failed(Fault),
+    /// Answers to a login check after the user picks a site; they never touch the voice session.
+    LoggedIn,
+    LoginNeeded,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -40,15 +43,16 @@ pub enum Event {
     NewChat,
 }
 
+/// Only errors beep: the sites already chime when voice starts and stops.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Beep {
-    On,
-    Off,
     Error,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Icon {
+    /// The site page is loading; set by the app, never by `step`.
+    Loading,
     Idle,
     Active,
     Error,
@@ -66,17 +70,13 @@ pub enum Effect {
 pub fn step(phase: &Phase, ev: Event) -> (Phase, Vec<Effect>) {
     use Effect::{StartVoice, StopVoice};
     use Phase::*;
-    let stopped = || vec![StopVoice, Effect::Beep(Beep::Off), Effect::Icon(Icon::Idle)];
+    let stopped = || vec![StopVoice, Effect::Icon(Icon::Idle)];
     let failed = |f| (Error(f), vec![StopVoice, Effect::Beep(Beep::Error), Effect::Icon(Icon::Error)]);
     match (phase, ev) {
-        (Idle | Error(_), Event::Hotkey) => {
-            (Starting, vec![Effect::Beep(Beep::On), Effect::Icon(Icon::Active), StartVoice])
-        }
+        (Idle | Error(_), Event::Hotkey) => (Starting, vec![Effect::Icon(Icon::Active), StartVoice]),
         (Starting, Event::Report(PageReport::VoiceStarted)) => (Listening, vec![]),
         (Starting | Listening, Event::Hotkey | Event::NewChat) => (Idle, stopped()),
-        (Listening, Event::Report(PageReport::VoiceEnded)) => {
-            (Idle, vec![Effect::Beep(Beep::Off), Effect::Icon(Icon::Idle)])
-        }
+        (Listening, Event::Report(PageReport::VoiceEnded)) => (Idle, vec![Effect::Icon(Icon::Idle)]),
         (Starting | Listening, Event::Report(PageReport::Failed(f))) => failed(f),
         (Starting, Event::StartTimeout) => failed(Fault::NoResponse),
         // Voice came up after the user already cancelled: turn it off again.
@@ -92,10 +92,7 @@ mod tests {
 
     #[test]
     fn hotkey_from_idle_starts() {
-        assert_eq!(
-            step(&Phase::Idle, Event::Hotkey),
-            (Phase::Starting, vec![Effect::Beep(Beep::On), Effect::Icon(Icon::Active), StartVoice])
-        );
+        assert_eq!(step(&Phase::Idle, Event::Hotkey), (Phase::Starting, vec![Effect::Icon(Icon::Active), StartVoice]));
     }
 
     #[test]
@@ -105,17 +102,14 @@ mod tests {
 
     #[test]
     fn hotkey_while_listening_stops() {
-        assert_eq!(
-            step(&Phase::Listening, Event::Hotkey),
-            (Phase::Idle, vec![StopVoice, Effect::Beep(Beep::Off), Effect::Icon(Icon::Idle)])
-        );
+        assert_eq!(step(&Phase::Listening, Event::Hotkey), (Phase::Idle, vec![StopVoice, Effect::Icon(Icon::Idle)]));
     }
 
     #[test]
     fn voice_ended_while_listening_goes_idle() {
         assert_eq!(
             step(&Phase::Listening, Event::Report(PageReport::VoiceEnded)),
-            (Phase::Idle, vec![Effect::Beep(Beep::Off), Effect::Icon(Icon::Idle)])
+            (Phase::Idle, vec![Effect::Icon(Icon::Idle)])
         );
     }
 
@@ -149,12 +143,23 @@ mod tests {
     fn hotkey_from_error_retries() {
         assert_eq!(
             step(&Phase::Error(Fault::LimitReached), Event::Hotkey),
-            (Phase::Starting, vec![Effect::Beep(Beep::On), Effect::Icon(Icon::Active), StartVoice])
+            (Phase::Starting, vec![Effect::Icon(Icon::Active), StartVoice])
         );
     }
 
     #[test]
+    fn login_reports_leave_phase_alone() {
+        for report in [PageReport::LoggedIn, PageReport::LoginNeeded] {
+            assert_eq!(step(&Phase::Listening, Event::Report(report)), (Phase::Listening, vec![]));
+            assert_eq!(step(&Phase::Idle, Event::Report(report)), (Phase::Idle, vec![]));
+        }
+    }
+
+    #[test]
     fn report_json_shapes() {
+        let p = |s: &str| serde_json::from_str::<PageReport>(s).unwrap();
+        assert_eq!(p(r#"{"kind":"logged_in"}"#), PageReport::LoggedIn);
+        assert_eq!(p(r#"{"kind":"login_needed"}"#), PageReport::LoginNeeded);
         let p = |s: &str| serde_json::from_str::<PageReport>(s).unwrap();
         assert_eq!(p(r#"{"kind":"voice_started"}"#), PageReport::VoiceStarted);
         assert_eq!(p(r#"{"kind":"voice_ended"}"#), PageReport::VoiceEnded);

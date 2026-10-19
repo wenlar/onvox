@@ -17,6 +17,9 @@ pub struct SiteSelectors {
     pub voice_active: Vec<String>,
     pub logged_out: Vec<String>,
     pub limit_texts: Vec<String>,
+    /// Cookie banner buttons, tried in order: the voice mode stays off until the banner is answered.
+    #[serde(default)]
+    pub consent_dismiss: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -114,6 +117,13 @@ mod tests {
         let s = parse(&json).unwrap();
         assert!(s.site(Provider::ChatGpt).is_some());
         assert!(s.site(Provider::Grok).is_none());
+    }
+
+    #[test]
+    fn consent_is_optional_and_set_for_grok() {
+        let json = format!(r#"{{"schema":1,"chatgpt":{}}}"#, site_json(r#""a""#, "https://x.test/"));
+        assert!(parse(&json).unwrap().chatgpt.unwrap().consent_dismiss.is_empty());
+        assert!(!embedded().grok.unwrap().consent_dismiss.is_empty());
     }
 
     #[test]
