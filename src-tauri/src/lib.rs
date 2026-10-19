@@ -4,10 +4,12 @@ pub mod hotkey;
 pub mod overlay;
 pub mod permission;
 pub mod provider;
+pub mod report;
 pub mod selectors;
 pub mod state;
 pub mod text;
 pub mod tray;
+pub mod update;
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -160,7 +162,7 @@ fn page_report(report: PageReport, app: AppHandle) {
                     provider::show_for_login(&win);
                 }
             } else {
-                app.state::<Settings>().update(|c| c.setup_done = true);
+                finish_setup(&app);
             }
         }
         _ => dispatch(&app, Event::Report(report)),
@@ -229,10 +231,20 @@ fn open_provider(app: &AppHandle) -> Option<tauri::WebviewWindow> {
             if let Some(w) = handle.get_webview_window(provider::LABEL) {
                 provider::hide(&w);
             }
-            handle.state::<Settings>().update(|c| c.setup_done = true);
+            finish_setup(&handle);
         }
     });
     Some(win)
+}
+
+/// The first time the user is set up, Onvox starts with Windows from then on.
+fn finish_setup(app: &AppHandle) {
+    let first = !app.state::<Settings>().config.lock().unwrap().setup_done;
+    if first {
+        app.state::<Settings>().update(|c| c.setup_done = true);
+        use tauri_plugin_autostart::ManagerExt;
+        let _ = app.autolaunch().enable();
+    }
 }
 
 /// A local page from `ui/`, told the Windows language through the query.
@@ -269,6 +281,19 @@ pub fn on_menu(app: &AppHandle, id: &str) {
             use tauri_plugin_clipboard_manager::ClipboardExt;
             let _ = app.clipboard().write_text(overlay::OVERLAY_URL);
         }
+        "update" => {
+            // Only offered when ready; refused mid-talk, in which case the error beep says so.
+            if !update::install_if_quiet(app) {
+                beep::play(state::Beep::Error);
+            }
+        }
+        "report" => {
+            use tauri_plugin_opener::OpenerExt;
+            let p = app.state::<Settings>().config.lock().unwrap().provider;
+            let phase = *app.state::<Session>().phase.lock().unwrap();
+            let version = app.package_info().version.to_string();
+            let _ = app.opener().open_url(report::issue_url(&version, p, &phase), None::<&str>);
+        }
         "relogin" => match app.get_webview_window(provider::LABEL) {
             Some(win) => provider::show_for_login(&win),
             None => {
@@ -296,6 +321,9 @@ pub fn on_menu(app: &AppHandle, id: &str) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _, ev| {
@@ -310,7 +338,12 @@ pub fn run() {
             let path = app.path().app_config_dir()?.join("config.json");
             let config = config::load(&path);
             let (setup_done, combo) = (config.setup_done, config.hotkey.clone());
+            let version = app.package_info().version.to_string();
+            let updates = update::Updates::default();
+            *updates.just_updated.lock().unwrap() = update::just_updated(&config, &version);
+            app.manage(updates);
             app.manage(Settings { path, config: Mutex::new(config) });
+            app.state::<Settings>().update(|c| c.last_version = version);
             app.manage(Sites(Mutex::new(selectors::embedded())));
             app.manage(Session {
                 phase: Arc::default(),
@@ -330,6 +363,7 @@ pub fn run() {
                 tray::refresh(&handle);
             });
             tray::build(app.handle())?;
+            update::spawn(app.handle());
             let hotkey_ok = hotkey::register(app.handle(), &combo).is_ok();
             if !setup_done {
                 open_page(app.handle(), "setup", text::Key::SetupTitle, (480.0, 360.0))?;
@@ -344,11 +378,14 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building Onvox")
-        .run(|_, event| {
+        .run(|app, event| match event {
             // A tray app: no window left (e.g. while the site window is swapped) is not a reason to quit.
             // Only the tray's Quit exits, and it passes an exit code.
-            if let tauri::RunEvent::ExitRequested { code: None, api, .. } = event {
-                api.prevent_exit();
+            tauri::RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
+            // Quitting is a quiet moment: put a downloaded update in now.
+            tauri::RunEvent::ExitRequested { code: Some(_), .. } => {
+                update::install_if_quiet(app);
             }
+            _ => {}
         });
 }

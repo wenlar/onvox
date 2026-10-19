@@ -35,6 +35,12 @@ pub enum Key {
     MenuCopyOverlay,
     MenuOverlayPortBusy,
     MenuQuit,
+    MenuReport,
+    MenuUpdate,
+    /// "{v}" is replaced with the version.
+    UpdateReady,
+    /// "{v}" is replaced with the version.
+    JustUpdated,
 }
 
 pub fn t(key: Key, lang: Lang) -> &'static str {
@@ -72,5 +78,13 @@ pub fn t(key: Key, lang: Lang) -> &'static str {
         (Key::MenuOverlayPortBusy, Lang::En) => "OBS overlay off: port 38517 is used by another app",
         (Key::MenuQuit, Lang::Tr) => "Çıkış",
         (Key::MenuQuit, Lang::En) => "Quit",
+        (Key::MenuReport, Lang::Tr) => "Sorun bildir",
+        (Key::MenuReport, Lang::En) => "Report a problem",
+        (Key::MenuUpdate, Lang::Tr) => "Güncelle ve yeniden başlat",
+        (Key::MenuUpdate, Lang::En) => "Update and restart",
+        (Key::UpdateReady, Lang::Tr) => "{v} sürümü hazır",
+        (Key::UpdateReady, Lang::En) => "Version {v} is ready",
+        (Key::JustUpdated, Lang::Tr) => "Onvox {v} sürümüne güncellendi",
+        (Key::JustUpdated, Lang::En) => "Updated to Onvox {v}",
     }
 }

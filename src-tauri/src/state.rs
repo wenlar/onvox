@@ -5,7 +5,7 @@ use serde::Deserialize;
 /// How long the page gets to report that voice mode started before it counts as not responding.
 pub const START_TIMEOUT: Duration = Duration::from_secs(10);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Fault {
     NotLoggedIn,

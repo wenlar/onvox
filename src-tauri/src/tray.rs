@@ -50,6 +50,21 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let sites = app.state::<crate::Sites>().0.lock().unwrap().clone();
     let menu = Menu::new(app)?;
     menu.append(&MenuItem::with_id(app, "status", current_status(app, &phase, l), false, None::<&str>)?)?;
+    let updates = app.state::<crate::update::Updates>();
+    if let Some(v) = updates.just_updated.lock().unwrap().as_deref() {
+        menu.append(&MenuItem::with_id(
+            app,
+            "updated",
+            t(Key::JustUpdated, l).replace("{v}", v),
+            false,
+            None::<&str>,
+        )?)?;
+    }
+    let ready = updates.ready_version();
+    if let Some(v) = &ready {
+        menu.append(&MenuItem::with_id(app, "ready", t(Key::UpdateReady, l).replace("{v}", v), false, None::<&str>)?)?;
+        menu.append(&MenuItem::with_id(app, "update", t(Key::MenuUpdate, l), true, None::<&str>)?)?;
+    }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     for (p, id, name) in [(Provider::ChatGpt, "p:chatgpt", "ChatGPT"), (Provider::Grok, "p:grok", "Grok")] {
         if sites.site(p).is_some() {
@@ -63,6 +78,7 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let obs = if overlay_ok { Key::MenuCopyOverlay } else { Key::MenuOverlayPortBusy };
     menu.append(&MenuItem::with_id(app, "obs", t(obs, l), overlay_ok, None::<&str>)?)?;
     menu.append(&MenuItem::with_id(app, "relogin", t(Key::MenuRelogin, l), true, None::<&str>)?)?;
+    menu.append(&MenuItem::with_id(app, "report", t(Key::MenuReport, l), true, None::<&str>)?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&MenuItem::with_id(app, "quit", t(Key::MenuQuit, l), true, None::<&str>)?)?;
     Ok(menu)
