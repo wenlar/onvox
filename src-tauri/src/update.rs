@@ -26,6 +26,11 @@ pub fn just_updated(cfg: &Config, current: &str) -> Option<String> {
     (!cfg.last_version.is_empty() && cfg.last_version != current).then(|| current.to_string())
 }
 
+/// The release page with the notes for version `v`.
+pub fn notes_url(v: &str) -> String {
+    format!("https://github.com/wenlar/onvox/releases/tag/v{v}")
+}
+
 /// A downloaded update waiting for a quiet moment, and the version this run was updated to.
 #[derive(Default)]
 pub struct Updates {
@@ -82,6 +87,11 @@ pub fn install_if_quiet(app: &AppHandle) -> bool {
 mod tests {
     use super::*;
     use crate::state::Fault;
+
+    #[test]
+    fn notes_url_points_at_the_release() {
+        assert_eq!(notes_url("0.1.2"), "https://github.com/wenlar/onvox/releases/tag/v0.1.2");
+    }
 
     #[test]
     fn due_after_20_hours() {
